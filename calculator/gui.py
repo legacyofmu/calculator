@@ -3,6 +3,7 @@
 import tkinter as tk
 
 from .engine import CalcError, Engine, format_number
+from .history import History
 
 # 일반 모드 버튼 배치: (표시 글자, 입력값 또는 동작)
 BASIC_BUTTONS = [
@@ -46,12 +47,14 @@ class CalculatorApp(tk.Tk):
         self.expression = ""
         self.just_evaluated = False
         self.scientific = False
+        self.history = History()
 
         self._build_mode_bar()
         self._build_display()
         self.keypad = tk.Frame(self, bg=COLORS["bg"])
         self.keypad.pack(padx=8, pady=(0, 8))
         self._build_keypad()
+        self._build_history_panel()
         self._bind_keys()
 
     # ---------- 화면 구성 ----------
@@ -65,7 +68,53 @@ class CalculatorApp(tk.Tk):
                             command=lambda n=name: self.set_mode(n == "scientific"))
             btn.pack(side="left", padx=(0, 4))
             self.mode_buttons[name] = btn
+        self.history_button = tk.Button(bar, text="기록", relief="flat", font=("Segoe UI", 10),
+                                        bg=COLORS["op"], fg=COLORS["text"],
+                                        activeforeground=COLORS["text"],
+                                        command=self.toggle_history)
+        self.history_button.pack(side="right")
         self._update_mode_bar()
+
+    def _build_history_panel(self):
+        """계산 기록 패널 (기본은 숨김, '기록' 버튼으로 표시)."""
+        self.history_frame = tk.Frame(self, bg=COLORS["bg"])
+        self.history_list = tk.Listbox(self.history_frame, height=6, bg=COLORS["display"],
+                                       fg=COLORS["text"], selectbackground=COLORS["equals"],
+                                       font=("Segoe UI", 11), relief="flat",
+                                       highlightthickness=0, activestyle="none")
+        self.history_list.pack(fill="x")
+        self.history_list.bind("<<ListboxSelect>>", self._on_history_select)
+        tk.Button(self.history_frame, text="기록 지우기", relief="flat", font=("Segoe UI", 9),
+                  bg=COLORS["op"], fg=COLORS["text"], activeforeground=COLORS["text"],
+                  command=self.clear_history).pack(anchor="e", pady=(4, 0))
+        self.history_visible = False
+
+    def toggle_history(self):
+        if self.history_visible:
+            self.history_frame.pack_forget()
+        else:
+            self.history_frame.pack(fill="x", padx=8, pady=(0, 8), before=self.keypad)
+        self.history_visible = not self.history_visible
+        self.history_button.configure(
+            bg=COLORS["equals"] if self.history_visible else COLORS["op"])
+
+    def clear_history(self):
+        self.history.clear()
+        self._refresh_history()
+
+    def _refresh_history(self):
+        self.history_list.delete(0, "end")
+        for entry in self.history.entries:
+            self.history_list.insert("end", str(entry))
+
+    def _on_history_select(self, _event):
+        selection = self.history_list.curselection()
+        if not selection:
+            return
+        entry = self.history.entries[selection[0]]
+        self.expression = entry.result
+        self.just_evaluated = True
+        self._refresh()
 
     def _update_mode_bar(self):
         active = "scientific" if self.scientific else "basic"
@@ -177,6 +226,8 @@ class CalculatorApp(tk.Tk):
             self.expression = ""
             return
         self.history_var.set(self.expression + " =")
+        self.history.add(self.expression, result)
+        self._refresh_history()
         self.expression = result
         self.just_evaluated = True
         self._refresh()
