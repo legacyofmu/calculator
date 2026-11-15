@@ -1,6 +1,6 @@
 # Calculator
 
-Python(tkinter)으로 만든 데스크톱 계산기입니다. git / GitHub 학습용 예제 프로젝트입니다.
+Python 3.12 + tkinter로 만든 데스크톱 계산기입니다. git / GitHub 학습용 예제 프로젝트입니다.
 
 ## 기능
 
