@@ -26,5 +26,5 @@ python -m unittest discover -s tests -v
 |---|---|
 | `Enter` 또는 `=` | 계산 |
 | `Backspace` | 한 글자 지우기 |
-| `Esc` | 전체 지우기 |
+| `Esc` 또는 `C` | 전체 지우기 |
 | `^` | 거듭제곱 |

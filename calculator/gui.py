@@ -180,6 +180,8 @@ class CalculatorApp(tk.Tk):
         self.bind("=", lambda e: self.on_press("equals"))
         self.bind("<BackSpace>", lambda e: self.on_press("back"))
         self.bind("<Escape>", lambda e: self.on_press("clear"))
+        for key in ("c", "C"):
+            self.bind(key, lambda e: self.on_press("clear"))
 
     # ---------- 동작 ----------
     def on_press(self, action):
