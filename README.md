@@ -19,3 +19,12 @@ python main.py
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## 단축키
+
+| 키 | 동작 |
+|---|---|
+| `Enter` 또는 `=` | 계산 |
+| `Backspace` | 한 글자 지우기 |
+| `Esc` | 전체 지우기 |
+| `^` | 거듭제곱 |
