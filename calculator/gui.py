@@ -13,6 +13,18 @@ BASIC_BUTTONS = [
     [("±", "negate"), ("0", "0"), (".", "."), ("=", "equals")],
 ]
 
+# 공학용 모드에서 왼쪽에 추가되는 버튼
+SCIENTIFIC_BUTTONS = [
+    [("sin", "sin("), ("cos", "cos("), ("tan", "tan("), ("(", "(")],
+    [("sin⁻¹", "asin("), ("cos⁻¹", "acos("), ("tan⁻¹", "atan("), (")", ")")],
+    [("x²", "^2"), ("xʸ", "^"), ("√", "√("), ("n!", "fact(")],
+    [("log", "log("), ("ln", "ln("), ("eˣ", "exp("), ("|x|", "abs(")],
+    [("π", "π"), ("e", "e"), ("1/x", "inverse"), ("DEG", "angle")],
+]
+
+# 계산 결과 바로 뒤에 눌렀을 때 결과에 이어서 계산하는 입력
+_CONTINUE_PREFIXES = ("+", "−", "×", "÷", "^", ")", "%")
+
 COLORS = {
     "bg": "#1e1e1e",
     "display": "#252526",
@@ -30,10 +42,12 @@ class CalculatorApp(tk.Tk):
         self.configure(bg=COLORS["bg"])
         self.resizable(False, False)
 
-        self.engine = Engine()
+        self.engine = Engine(degrees=True)
         self.expression = ""
         self.just_evaluated = False
+        self.scientific = False
 
+        self._build_mode_bar()
         self._build_display()
         self.keypad = tk.Frame(self, bg=COLORS["bg"])
         self.keypad.pack(padx=8, pady=(0, 8))
@@ -41,6 +55,32 @@ class CalculatorApp(tk.Tk):
         self._bind_keys()
 
     # ---------- 화면 구성 ----------
+    def _build_mode_bar(self):
+        bar = tk.Frame(self, bg=COLORS["bg"])
+        bar.pack(fill="x", padx=8, pady=(8, 0))
+        self.mode_buttons = {}
+        for name, label in (("basic", "일반"), ("scientific", "공학용")):
+            btn = tk.Button(bar, text=label, relief="flat", font=("Segoe UI", 10),
+                            fg=COLORS["text"], activeforeground=COLORS["text"],
+                            command=lambda n=name: self.set_mode(n == "scientific"))
+            btn.pack(side="left", padx=(0, 4))
+            self.mode_buttons[name] = btn
+        self._update_mode_bar()
+
+    def _update_mode_bar(self):
+        active = "scientific" if self.scientific else "basic"
+        for name, btn in self.mode_buttons.items():
+            btn.configure(bg=COLORS["equals"] if name == active else COLORS["op"])
+
+    def set_mode(self, scientific: bool):
+        if scientific == self.scientific:
+            return
+        self.scientific = scientific
+        for child in self.keypad.winfo_children():
+            child.destroy()
+        self._build_keypad()
+        self._update_mode_bar()
+
     def _build_display(self):
         frame = tk.Frame(self, bg=COLORS["display"])
         frame.pack(fill="x", padx=8, pady=8)
@@ -53,9 +93,22 @@ class CalculatorApp(tk.Tk):
             fill="x", padx=10, pady=(0, 8))
 
     def _build_keypad(self):
+        offset = 0
+        if self.scientific:
+            for r, row in enumerate(SCIENTIFIC_BUTTONS):
+                for c, (label, action) in enumerate(row):
+                    btn = self._make_button(self.keypad, label, action, r, c)
+                    btn.configure(font=("Segoe UI", 12))
+                    if action == "angle":
+                        self.angle_button = btn
+                        self._update_angle_label()
+            offset = len(SCIENTIFIC_BUTTONS[0])
         for r, row in enumerate(BASIC_BUTTONS):
             for c, (label, action) in enumerate(row):
-                self._make_button(self.keypad, label, action, r, c)
+                self._make_button(self.keypad, label, action, r, c + offset)
+
+    def _update_angle_label(self):
+        self.angle_button.configure(text="DEG" if self.engine.degrees else "RAD")
 
     def _make_button(self, parent, label, action, row, col):
         if action == "equals":
@@ -72,7 +125,7 @@ class CalculatorApp(tk.Tk):
         return btn
 
     def _bind_keys(self):
-        for ch in "0123456789.+-*/()%":
+        for ch in "0123456789.+-*/()%^":
             self.bind(ch, lambda e, ch=ch: self.on_press({"*": "×", "/": "÷", "-": "−"}.get(ch, ch)))
         self.bind("<Return>", lambda e: self.on_press("equals"))
         self.bind("=", lambda e: self.on_press("equals"))
@@ -96,9 +149,18 @@ class CalculatorApp(tk.Tk):
                 self.expression = f"({self.expression})÷100"
                 self._evaluate()
                 return
+        elif action == "inverse":
+            if self.expression:
+                self.expression = f"1÷({self.expression})"
+                self._evaluate()
+                return
+        elif action == "angle":
+            self.engine.degrees = not self.engine.degrees
+            self._update_angle_label()
+            return
         else:
-            # 결과 직후 숫자를 누르면 새 계산 시작, 연산자면 결과에 이어서 계산
-            if self.just_evaluated and (action[0].isdigit() or action == "."):
+            # 결과 직후 연산자를 누르면 결과에 이어서 계산, 그 외(숫자·함수)는 새 계산 시작
+            if self.just_evaluated and not action.startswith(_CONTINUE_PREFIXES):
                 self.expression = ""
             self.expression += action
         self.just_evaluated = False
